@@ -1,0 +1,79 @@
+{
+ "source": "USGS Landsat 8/9 Collection 2 Level-2 via Google Earth Engine",
+ "collections": [
+  "LANDSAT/LC08/C02/T1_L2",
+  "LANDSAT/LC09/C02/T1_L2"
+ ],
+ "start": "2026-03-01",
+ "end": "2026-06-01",
+ "min_clear": 0.8,
+ "grid_m": 250,
+ "crs": "EPSG:32647",
+ "ingested_at": "2026-11-11T17:28:46+00:00",
+ "scenes": [
+  {
+   "DATE_ACQUIRED": "2026-03-07",
+   "SPACECRAFT_ID": "LANDSAT_8",
+   "WRS_PATH": 129,
+   "WRS_ROW": 50,
+   "clear_frac": 0.9221922010167224,
+   "id": "1_LC08_129050_20260307"
+  },
+  {
+   "DATE_ACQUIRED": "2026-04-08",
+   "SPACECRAFT_ID": "LANDSAT_8",
+   "WRS_PATH": 129,
+   "WRS_ROW": 50,
+   "clear_frac": 0.8540537687215595,
+   "id": "1_LC08_129050_20260408"
+  },
+  {
+   "DATE_ACQUIRED": "2026-03-07",
+   "SPACECRAFT_ID": "LANDSAT_8",
+   "WRS_PATH": 129,
+   "WRS_ROW": 51,
+   "clear_frac": 0.9362634587008983,
+   "id": "1_LC08_129051_20260307"
+  },
+  {
+   "DATE_ACQUIRED": "2026-04-08",
+   "SPACECRAFT_ID": "LANDSAT_8",
+   "WRS_PATH": 129,
+   "WRS_ROW": 51,
+   "clear_frac": 0.884477278953286,
+   "id": "1_LC08_129051_20260408"
+  },
+  {
+   "DATE_ACQUIRED": "2026-03-15",
+   "SPACECRAFT_ID": "LANDSAT_9",
+   "WRS_PATH": 129,
+   "WRS_ROW": 50,
+   "clear_frac": 0.9959662076755262,
+   "id": "2_LC09_129050_20260315"
+  },
+  {
+   "DATE_ACQUIRED": "2026-04-16",
+   "SPACECRAFT_ID": "LANDSAT_9",
+   "WRS_PATH": 129,
+   "WRS_ROW": 50,
+   "clear_frac": 0.8254812174552609,
+   "id": "2_LC09_129050_20260416"
+  },
+  {
+   "DATE_ACQUIRED": "2026-03-15",
+   "SPACECRAFT_ID": "LANDSAT_9",
+   "WRS_PATH": 129,
+   "WRS_ROW": 51,
+   "clear_frac": 0.9906413921906078,
+   "id": "2_LC09_129051_20260315"
+  },
+  {
+   "DATE_ACQUIRED": "2026-04-16",
+   "SPACECRAFT_ID": "LANDSAT_9",
+   "WRS_PATH": 129,
+   "WRS_ROW": 51,
+   "clear_frac": 0.8590605723369134,
+   "id": "2_LC09_129051_20260416"
+  }
+ ]
+}

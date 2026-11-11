@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bangkok Urban Heat</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  :root { --bg:#f7f7f5; --panel:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e3de; --ok:#1a7f4b; --bad:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 "Leelawadee UI","Noto Sans Thai",system-ui,sans-serif; color:var(--ink); background:var(--bg); }
+  .app { display:grid; grid-template-columns: 1fr 420px; height:100vh; }
+  #map { height:100%; }
+  aside { overflow-y:auto; background:var(--panel); border-left:1px solid var(--line); padding:16px 20px 40px; }
+  h1 { font-size:18px; margin:0 0 2px; } h2 { font-size:15px; margin:22px 0 8px; }
+  .muted { color:var(--muted); font-size:12px; }
+  .seg { display:flex; gap:4px; margin:6px 0; flex-wrap:wrap; }
+  .seg button { border:1px solid var(--line); background:#fff; padding:5px 10px; border-radius:6px; cursor:pointer; font:inherit; }
+  .seg button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+  .card h3 { margin:0 0 6px; font-size:14px; display:flex; justify-content:space-between; gap:8px; }
+  .badge { font-size:12px; padding:1px 8px; border-radius:10px; color:#fff; white-space:nowrap; }
+  .stats { display:grid; grid-template-columns: repeat(4,1fr); gap:4px; font-size:12px; }
+  .stats b { display:block; font-size:15px; }
+  canvas.sc { width:100%; height:180px; margin-top:8px; display:block; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { padding:3px 4px; border-bottom:1px solid var(--line); text-align:right; }
+  th:nth-child(2), td:nth-child(2) { text-align:left; }
+  th { cursor:pointer; user-select:none; } tr:hover td { background:#f0f0ec; cursor:pointer; }
+  .legend { position:absolute; left:10px; bottom:28px; background:#fffe; padding:8px 10px; border-radius:6px; font-size:12px; box-shadow:0 1px 4px #0002; }
+  .legend .bar { width:180px; height:10px; border-radius:2px; margin:4px 0 2px; }
+  .legend .ends { display:flex; justify-content:space-between; }
+  ul { padding-left:18px; margin:4px 0; font-size:12.5px; }
+  @media (max-width: 800px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height:auto; }
+    aside { border-left:0; border-top:1px solid var(--line); padding:16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div style="position:relative"><div id="map"></div><div class="legend" id="legend"></div></div>
+  <aside>
+    <h1>ความร้อนพื้นผิวในกรุงเทพฯ</h1>
+    <div class="muted" id="meta">กำลังโหลด…</div>
+
+    <h2>แผนที่</h2>
+    <div class="seg" id="varSeg"></div>
+    <div class="seg" id="levelSeg"></div>
+
+    <h2>ผลทดสอบสมมติฐาน</h2>
+    <div id="hyp"></div>
+
+    <h2>สรุปรายเขต <span class="muted">(คลิกหัวคอลัมน์เพื่อเรียง, คลิกแถวเพื่อซูม)</span></h2>
+    <table id="tbl"><thead></thead><tbody></tbody></table>
+
+    <h2>คุณภาพข้อมูลและข้อจำกัด</h2>
+    <ul id="qc"></ul>
+    <ul>
+      <li>Landsat ถ่ายภาพราว 10:30 น. จึงไม่มีข้อมูลตอนบ่ายและกลางคืน</li>
+      <li>LST คืออุณหภูมิพื้นผิว ไม่ใช่อุณหภูมิอากาศที่คนรู้สึก</li>
+      <li>เกณฑ์ภาพปลอดเมฆ 80% และกริด 250 ม. เป็นค่าที่ตั้งขึ้นเอง</li>
+      <li>ความสัมพันธ์ไม่ได้แปลว่าเป็นเหตุและผล (วิเคราะห์แบบภาคตัดขวาง)</li>
+    </ul>
+  </aside>
+</div>
+
+<script>
+const VARS = {
+  LST:  { label: "LST (°C)", colors: ["#2c7bb6", "#ffffbf", "#d7191c"], fmt: v => v.toFixed(1) },
+  NDVI: { label: "NDVI",     colors: ["#f7fcf5", "#74c476", "#00441b"], fmt: v => v.toFixed(2) },
+  NDBI: { label: "NDBI",     colors: ["#fcfbfd", "#9e9ac8", "#3f007d"], fmt: v => v.toFixed(2) },
+};
+const HALF = 125; // ครึ่งกริด (ม.)
+let state = { v: "LST", level: "cells", sortKey: "rank_LST", sortAsc: true };
+let ranges = {}, districts, results;
+
+const q = (arr, p) => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(p * (s.length - 1))]; };
+const fmtP = p => p === 0 ? "< 1e-300" : p.toExponential(1);
+
+async function load() {
+  const [csv, dj, rj] = await Promise.all([
+    fetch("../output/cells.csv").then(r => r.text()),
+    fetch("../output/districts.geojson").then(r => r.json()),
+    fetch("../output/results.json").then(r => r.json()),
+  ]);
+  districts = dj; results = rj;
+  const names = Object.fromEntries(dj.features.map(f => [f.properties.dcode, f.properties.dname]));
+
+  // CSV → สี่เหลี่ยมกริด 250 ม.
+  const rows = csv.trim().split("\n").slice(1).map(l => l.split(","));
+  const cells = { type: "FeatureCollection", features: rows.map(([lon, lat, LST, NDVI, NDBI, dcode]) => {
+    lon = +lon; lat = +lat;
+    const dx = HALF / (111320 * Math.cos(lat * Math.PI / 180)), dy = HALF / 110540;
+    return { type: "Feature", properties: { LST: +LST, NDVI: +NDVI, NDBI: +NDBI, dname: names[dcode] },
+      geometry: { type: "Polygon", coordinates: [[[lon-dx,lat-dy],[lon+dx,lat-dy],[lon+dx,lat+dy],[lon-dx,lat+dy],[lon-dx,lat-dy]]] } };
+  })};
+  for (const v in VARS) {
+    const a = cells.features.map(f => f.properties[v]), d = dj.features.map(f => f.properties[v]);
+    ranges.cells = ranges.cells || {}; ranges.districts = ranges.districts || {};
+    ranges.cells[v] = [q(a, .02), q(a, .5), q(a, .98)];
+    ranges.districts[v] = [Math.min(...d), q(d, .5), Math.max(...d)];
+  }
+  return cells;
+}
+
+const map = new maplibregl.Map({
+  container: "map", center: [100.6, 13.75], zoom: 9.8,
+  style: { version: 8, sources: { base: { type: "raster", tileSize: 256,
+    tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"],
+    attribution: "Basemap © Esri · Landsat 8/9 (USGS)" } },
+    layers: [{ id: "base", type: "raster", source: "base" }] },
+});
+map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+function colorExpr(v, level) {
+  const [lo, mid, hi] = ranges[level][v], c = VARS[v].colors;
+  return ["interpolate", ["linear"], ["get", v], lo, c[0], mid, c[1], hi, c[2]];
+}
+
+function render() {
+  const { v, level } = state;
+  map.setPaintProperty("cells", "fill-color", colorExpr(v, "cells"));
+  map.setPaintProperty("dist-fill", "fill-color", colorExpr(v, "districts"));
+  map.setLayoutProperty("cells", "visibility", level === "cells" ? "visible" : "none");
+  map.setLayoutProperty("dist-fill", "visibility", level === "districts" ? "visible" : "none");
+  const [lo, , hi] = ranges[level][v], c = VARS[v].colors;
+  document.getElementById("legend").innerHTML = `<b>${VARS[v].label}</b>${level === "districts" ? " · ค่าเฉลี่ยรายเขต" : " · กริด 250 ม."}
+    <div class="bar" style="background:linear-gradient(90deg,${c.join(",")})"></div>
+    <div class="ends"><span>≤ ${VARS[v].fmt(lo)}</span><span>≥ ${VARS[v].fmt(hi)}</span></div>`;
+  seg("varSeg", Object.keys(VARS), v, x => { state.v = x; render(); });
+  seg("levelSeg", [["cells", "กริด 250 ม."], ["districts", "รายเขต"]], level, x => { state.level = x; render(); });
+}
+
+function seg(id, opts, cur, onClick) {
+  const el = document.getElementById(id); el.innerHTML = "";
+  for (const o of opts) {
+    const [val, lab] = Array.isArray(o) ? o : [o, o];
+    const b = document.createElement("button"); b.textContent = lab; b.className = val === cur ? "on" : "";
+    b.onclick = () => onClick(val); el.appendChild(b);
+  }
+}
+
+function renderHyp() {
+  const desc = { H1: "สัดส่วนพื้นที่สีเขียว (NDVI) สัมพันธ์เชิงลบกับ LST", H2: "ความหนาแน่นสิ่งปลูกสร้าง (NDBI) สัมพันธ์เชิงบวกกับ LST" };
+  document.getElementById("hyp").innerHTML = ["H1", "H2"].map(h => {
+    const r = results[h], b = r.coefs[r.x];
+    return `<div class="card"><h3><span>${h}: ${desc[h]}</span>
+      <span class="badge" style="background:var(${r.supported ? "--ok" : "--bad"})">${r.supported ? "สนับสนุน" : "ไม่สนับสนุน"}</span></h3>
+      <div class="stats">
+        <div>r<b>${r.pearson_r.toFixed(2)}</b></div>
+        <div>β (std)<b>${b.beta_std.toFixed(2)}</b></div>
+        <div>R²<b>${r.r2.toFixed(2)}</b></div>
+        <div>p<b style="font-size:12px">${fmtP(b.p_cluster)}</b></div>
+      </div>
+      <div class="muted">95% CI [${b.ci95.map(x => x.toFixed(2)).join(", ")}] · p ใช้ cluster-robust SE (บล็อก 2.5 กม.) · Moran's I ของ residual = ${r.morans_i_resid.toFixed(2)}<br>
+      ความชัน: ${r.x} เพิ่ม 0.1 → LST ${r.slope_raw > 0 ? "+" : ""}${(r.slope_raw * 0.1).toFixed(1)}°C</div>
+      <canvas class="sc" id="sc-${h}"></canvas></div>`;
+  }).join("");
+  ["H1", "H2"].forEach(h => drawScatter(document.getElementById("sc-" + h), results[h]));
+}
+
+// hist2d (จำนวน cell ต่อช่อง, สเกล log) + เส้นถดถอย
+function drawScatter(cv, r) {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const { x_edges: xe, y_edges: ye, counts } = r.hist2d, pad = { l: 34, r: 6, t: 6, b: 22 };
+  const sx = x => pad.l + (x - xe[0]) / (xe.at(-1) - xe[0]) * (W - pad.l - pad.r);
+  const sy = y => H - pad.b - (y - ye[0]) / (ye.at(-1) - ye[0]) * (H - pad.t - pad.b);
+  const max = Math.log1p(Math.max(...counts.flat()));
+  counts.forEach((col, i) => col.forEach((n, j) => {
+    if (!n) return;
+    g.fillStyle = `rgba(68,1,84,${0.12 + 0.88 * Math.log1p(n) / max})`;
+    g.fillRect(sx(xe[i]), sy(ye[j + 1]), sx(xe[i + 1]) - sx(xe[i]) + .5, sy(ye[j]) - sy(ye[j + 1]) + .5);
+  }));
+  g.strokeStyle = "#d7191c"; g.lineWidth = 2; g.beginPath();
+  g.moveTo(sx(xe[0]), sy(r.intercept_raw + r.slope_raw * xe[0]));
+  g.lineTo(sx(xe.at(-1)), sy(r.intercept_raw + r.slope_raw * xe.at(-1))); g.stroke();
+  g.fillStyle = "#6b6b66"; g.font = "11px system-ui";
+  g.fillText(r.x, W / 2, H - 6);
+  g.fillText(xe[0].toFixed(2), pad.l, H - 6); g.fillText(xe.at(-1).toFixed(2), W - 30, H - 6);
+  g.fillText(ye.at(-1).toFixed(0) + "°", 4, pad.t + 10); g.fillText(ye[0].toFixed(0) + "°", 4, H - pad.b);
+}
+
+function renderTable() {
+  const cols = [["rank_LST", "#"], ["dname", "เขต"], ["LST", "LST °C"], ["NDVI", "NDVI"], ["NDBI", "NDBI"]];
+  const { sortKey: k, sortAsc: asc } = state;
+  document.querySelector("#tbl thead").innerHTML = "<tr>" + cols.map(([c, l]) =>
+    `<th data-k="${c}">${l}${c === k ? (asc ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr>";
+  document.querySelectorAll("#tbl th").forEach(th => th.onclick = () => {
+    state.sortAsc = state.sortKey === th.dataset.k ? !state.sortAsc : th.dataset.k === "rank_LST" || th.dataset.k === "dname";
+    state.sortKey = th.dataset.k; renderTable();
+  });
+  const rows = [...districts.features].sort((a, b) => {
+    const x = a.properties[k], y = b.properties[k];
+    return (typeof x === "string" ? x.localeCompare(y, "th") : x - y) * (asc ? 1 : -1);
+  });
+  const tb = document.querySelector("#tbl tbody"); tb.innerHTML = "";
+  for (const f of rows) {
+    const p = f.properties, tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.rank_LST}</td><td>${p.dname.replace(/^เขต/, "")}</td><td>${p.LST.toFixed(1)}</td><td>${p.NDVI.toFixed(2)}</td><td>${p.NDBI.toFixed(2)}</td>`;
+    tr.onclick = () => {
+      const pts = f.geometry.coordinates[0], xs = pts.map(c => c[0]), ys = pts.map(c => c[1]);
+      map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: 40 });
+    };
+    tb.appendChild(tr);
+  }
+}
+
+function renderMeta() {
+  const m = results.meta, dates = m.dates || [];
+  document.getElementById("meta").innerHTML =
+    `Landsat 8/9 · ${dates.length ? `${m.n_scenes} scenes จาก ${dates.length} วันที่ถ่าย (${dates[0]} ถึง ${dates.at(-1)})` : "ไม่ทราบวันที่ภาพ"} · ` +
+    `${m.n_cells.toLocaleString()} กริด ${m.grid_m} ม. · ${m.n_districts} เขต · ตัดแหล่งน้ำออกแล้ว<br>run ${m.run_id}`;
+  const icon = c => c.passed === true ? "✅" : c.passed === false ? (c.severity === "error" ? "❌" : "⚠️") : "ℹ️";
+  const val = c => c.value == null || (c.passed && c.value === 0) ? "" :(Math.abs(c.value) < 1 && c.value !== 0 ? (c.value * 100).toFixed(1) + "%" : c.value);
+  document.getElementById("qc").innerHTML = results.quality_checks.map(c =>
+    `<li>${icon(c)} ${c.check_name}${val(c) !== "" ? `: ${val(c)}` : ""}${c.detail ? ` <span class="muted">(${c.detail})</span>` : ""}</li>`).join("");
+}
+
+const mapReady = new Promise(r => map.on("load", r));
+const dataReady = load();
+dataReady.then(() => { renderHyp(); renderTable(); renderMeta(); });  // แผงข้อมูลไม่ต้องรอ basemap
+Promise.all([dataReady, mapReady]).then(([cells]) => {
+  map.addSource("cells", { type: "geojson", data: cells });
+  map.addSource("dist", { type: "geojson", data: districts });
+  map.addLayer({ id: "cells", type: "fill", source: "cells", paint: { "fill-opacity": 0.8 } });
+  map.addLayer({ id: "dist-fill", type: "fill", source: "dist", paint: { "fill-opacity": 0.8 } });
+  map.addLayer({ id: "dist-line", type: "line", source: "dist", paint: { "line-color": "#333", "line-width": 0.6 } });
+
+  const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
+  for (const id of ["cells", "dist-fill"]) {
+    map.on("mousemove", id, e => {
+      const p = e.features[0].properties;
+      map.getCanvas().style.cursor = "pointer";
+      popup.setLngLat(e.lngLat).setHTML(`<b>${p.dname ?? ""}</b>${id === "dist-fill" ? ` (อันดับร้อน ${p.rank_LST}/50)` : ""}<br>
+        LST ${(+p.LST).toFixed(1)}°C · NDVI ${(+p.NDVI).toFixed(2)} · NDBI ${(+p.NDBI).toFixed(2)}`).addTo(map);
+    });
+    map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; popup.remove(); });
+  }
+  render();
+});
+dataReady.catch(e => { document.getElementById("meta").textContent = "โหลดข้อมูลไม่ได้: " + e.message + " (ต้องเปิดผ่าน http server ที่ root ของโปรเจกต์)"; });
+</script>
+</body>
+</html>
