@@ -9,7 +9,7 @@
  "min_clear": 0.8,
  "grid_m": 250,
  "crs": "EPSG:32647",
- "ingested_at": "2026-11-11T17:28:46+00:00",
+ "ingested_at": "2026-11-12T15:10:22+00:00",
  "scenes": [
   {
    "DATE_ACQUIRED": "2026-03-07",

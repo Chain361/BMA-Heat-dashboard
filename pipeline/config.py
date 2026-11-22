@@ -19,7 +19,7 @@ CRS = "EPSG:32647"       # UTM 47N
 AOI_BUFFER_M = 1000      # buffer รอบขอบเขต กทม. กันกริดริมขอบหาย
 
 # ---- quality checks ----
-LST_RANGE = (20, 60)     # °C
+LST_RANGE = (40, 60)     # °C
 MIN_DATES = 3            # จำนวนวันที่ถ่ายภาพ (ไม่ซ้ำ) ขั้นต่ำ
 MIN_OBS = 2              # จำนวน observation ปลอดเมฆต่อพิกเซลขั้นต่ำ
 MIN_OBS_SHARE = 0.90     # สัดส่วนกริดที่ต้องมี n_obs ≥ MIN_OBS
