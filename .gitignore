@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+
+# สร้างใหม่ได้ด้วย python run_pipeline.py --skip-ingest
+data/warehouse.duckdb
+data/warehouse.duckdb.wal
+data/raw/*.part

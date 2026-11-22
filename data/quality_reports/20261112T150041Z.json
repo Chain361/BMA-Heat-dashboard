@@ -1,0 +1,138 @@
+{
+ "run_id": "20261112T150041Z",
+ "status": "ok",
+ "git_commit": "1e1fd21",
+ "inputs": {
+  "landsat_cells_250m.csv": "bd0242020f14f9a345bdf73d9fc0e96f5e1c42e669b21e8bc30b570ba046391c",
+  "landsat_meta.json": "e43802eb83c689b36340389b91127124e32d14f1f49dbb342388adfa2e9c2abe",
+  "Bangkok-districts.geojson": "0675e5973a0d5ad1ab00eca6aa18e5247f9046daee56ec9239ea0d7e4ef4e547"
+ },
+ "checks": [
+  {
+   "check_name": "มีคอลัมน์ครบ",
+   "category": "schema",
+   "severity": "error",
+   "value": 0.0,
+   "threshold": "0 คอลัมน์ที่ขาด",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "คอลัมน์เป็นตัวเลข",
+   "category": "schema",
+   "severity": "error",
+   "value": 0.0,
+   "threshold": "0",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "ไม่มีค่าว่างในคอลัมน์หลัก",
+   "category": "schema",
+   "severity": "error",
+   "value": 0.0,
+   "threshold": "0",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "พิกัดอยู่ในกรอบ กทม.",
+   "category": "schema",
+   "severity": "error",
+   "value": 0.0,
+   "threshold": "0 (bbox (100.3, 13.45, 101.0, 14.0))",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "ไม่มีกริดซ้ำ",
+   "category": "schema",
+   "severity": "error",
+   "value": 0.0,
+   "threshold": "0",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "LST อยู่ในช่วงที่เป็นไปได้",
+   "category": "range",
+   "severity": "error",
+   "value": 0.0,
+   "threshold": "0 กริดนอก 20–60°C",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "NDVI/NDBI อยู่ใน [-1, 1]",
+   "category": "range",
+   "severity": "error",
+   "value": 0.0,
+   "threshold": "0",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "สัดส่วนกริดที่อยู่นอกเขต (ตัดทิ้ง)",
+   "category": "integration",
+   "severity": "info",
+   "value": 0.13139796094695005,
+   "threshold": "-",
+   "passed": null,
+   "detail": "มาจาก buffer รอบ AOI ใน GEE"
+  },
+  {
+   "check_name": "ครบทุกเขต",
+   "category": "integration",
+   "severity": "error",
+   "value": 50.0,
+   "threshold": "50",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "coverage ต่ำสุดรายเขต",
+   "category": "completeness",
+   "severity": "warn",
+   "value": 0.8970376099045979,
+   "threshold": "≥ 0.5",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check_name": "coverage รวม",
+   "category": "completeness",
+   "severity": "info",
+   "value": 0.992138260109414,
+   "threshold": "-",
+   "passed": null,
+   "detail": ""
+  },
+  {
+   "check_name": "จำนวนวันที่ถ่ายภาพ (ไม่ซ้ำ)",
+   "category": "temporal",
+   "severity": "error",
+   "value": 4.0,
+   "threshold": "≥ 3",
+   "passed": true,
+   "detail": "2026-03-07, 2026-03-15, 2026-04-08, 2026-04-16"
+  },
+  {
+   "check_name": "จำนวน scene",
+   "category": "temporal",
+   "severity": "info",
+   "value": 8.0,
+   "threshold": "-",
+   "passed": null,
+   "detail": "1 วันอาจมีหลาย scene (path/row ติดกัน)"
+  },
+  {
+   "check_name": "สัดส่วนกริดที่มี obs ≥ 2",
+   "category": "temporal",
+   "severity": "warn",
+   "value": 0.9988859268690566,
+   "threshold": "≥ 0.9",
+   "passed": true,
+   "detail": ""
+  }
+ ]
+}
