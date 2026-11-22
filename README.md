@@ -107,6 +107,3 @@ python -c "import duckdb; print(duckdb.connect('data/warehouse.duckdb', read_onl
 
 ## ผู้จัดทำ
 โครงงานเดี่ยว: ผู้จัดทำคนเดียวรับผิดชอบทุกส่วน (problem framing, pipeline, analysis, web)
-
-## การใช้ AI
-_TODO: ระบุว่าใช้ AI (Claude) ช่วยในส่วนไหน และตรวจสอบผลลัพธ์อย่างไร เช่น รันซ้ำแล้วเทียบตัวเลข, ทดสอบให้ quality gate fail, ตรวจแผนที่ด้วยตา_
